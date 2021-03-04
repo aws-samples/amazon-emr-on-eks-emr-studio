@@ -1,0 +1,41 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: %clustername%
+  region: %region%
+vpc:
+  id: "%Vpc%"
+  cidr: "%VpcCidr%"
+  subnets:
+    public:
+      %public_az_0%:
+          id: "%PublicSubnet0%"
+          cidr: "%PublicSubnet0Cidr%"
+      %public_az_1%:
+          id: "%PublicSubnet1%"
+          cidr: "%PublicSubnet1Cidr%"
+    private:
+      %private_az_0%:
+          id: "%PrivateSubnet0%"
+          cidr: "%PrivateSubnet0Cidr%"
+      %private_az_1%:
+          id: "%PrivateSubnet1%"
+          cidr: "%PrivateSubnet1Cidr%"
+
+managedNodeGroups:
+  - name: %managedNodeName%
+    instanceType: %instanceType%
+    volumeSize: %volumeSize%
+    desiredCapacity: %desiredCapacity%
+    privateNetworking: true
+    maxPodsPerNode: %maxPodsPerNode%
+    spot: false
+    ssh:
+      allow: true
+      publicKeyName: %pubkey%
+    iam:
+      attachPolicyARNs:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - %policyarn%
