@@ -1,0 +1,224 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Creates New VPC
+
+Conditions:
+
+  MoreThan2AZ:
+    !Or [
+      !Equals [ !Ref 'AWS::Region', us-east-1 ],
+      !Equals [ !Ref 'AWS::Region', us-east-2 ],
+      !Equals [ !Ref 'AWS::Region', us-west-2 ],
+      !Equals [ !Ref 'AWS::Region', eu-west-1 ],
+      !Equals [ !Ref 'AWS::Region', sa-east-1 ],
+      !Equals [ !Ref 'AWS::Region', ap-northeast-1 ],
+      !Equals [ !Ref 'AWS::Region', ap-southeast-2 ]
+    ]
+
+Parameters:
+  
+  VpcCidr:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    Description: The CIDR IP range of the VPC.
+    Type: String
+    Default: 172.16.0.0/16
+  
+  PrivateSubnet0Cidr:
+    Description: Please enter the IP range (CIDR notation) for the PRIVATE subnet in the first Availability Zone
+    Type: String
+    Default: 172.16.1.0/24
+
+  PrivateSubnet1Cidr:
+    Description: Please enter the IP range (CIDR notation) for the PRIVATE subnet in the second Availability Zone
+    Type: String
+    Default: 172.16.2.0/24
+
+  PublicSubnet0Cidr:
+    Description: Please enter the IP range (CIDR notation) for the PUBLIC subnet in the first Availability Zone
+    Type: String
+    Default: 172.16.3.0/24
+
+  PublicSubnet1Cidr:
+    Description: Please enter the IP range (CIDR notation) for the PUBLIC subnet in the second Availability Zone
+    Type: String
+    Default: 172.16.4.0/24
+
+Resources:
+
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Join [ '', [ 'Vpc / ', !Ref 'AWS::StackName' ] ]
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Join [ '', [ 'InternetGateway / ', !Ref 'AWS::StackName' ] ]
+
+  AttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref Vpc
+
+  PublicSubnet0:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref PublicSubnet0Cidr
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Join [ '', [ 'PublicSubnet0 / ', !Ref 'AWS::StackName' ] ]
+        - Key: SubnetType
+          Value: Public
+        - Key: "kubernetes.io/role/elb"
+          Value: "1"
+      VpcId: !Ref Vpc
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: !Ref PublicSubnet1Cidr
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Join [ '', [ 'PublicSubnet1 / ', !Ref 'AWS::StackName' ] ]
+        - Key: SubnetType
+          Value: Public
+        - Key: "kubernetes.io/role/elb"
+          Value: "1"
+      VpcId: !Ref Vpc
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachInternetGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Join [ '', [ 'PublicRouteTable / ', !Ref 'AWS::StackName' ] ]
+        - Key: Network
+          Value: Public
+      VpcId: !Ref Vpc
+
+  PublicRouteTableAssociation0:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet0
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  NatEIP0:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc 
+  
+  NatGateway0:
+    Type: AWS::EC2::NatGateway
+    DependsOn: AttachInternetGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP0.AllocationId
+      SubnetId: !Ref PublicSubnet0
+
+  NatRouteTable0:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      VpcId: !Ref Vpc 
+      Tags:
+        - Key: Name 
+          Value: !Join [ '', [ 'NatRouteTable0 / ', !Ref 'AWS::StackName' ] ]
+        - Key: Network
+          Value: Public
+
+  NatRoute0:
+    Type: AWS::EC2::Route 
+    Properties:
+      RouteTableId: !Ref NatRouteTable0
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway0
+  
+  PrivateSubnet0:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '' ]
+      CidrBlock: !Ref PrivateSubnet0Cidr
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join [ '', [ 'PrivateSubnet0 / ', !Ref 'AWS::StackName' ] ]
+        - Key: SubnetType
+          Value: Private
+        - Key: "kubernetes.io/role/internal-elb"
+          Value: "1"
+      VpcId: !Ref Vpc
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '' ]
+      CidrBlock: !Ref PrivateSubnet1Cidr
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join [ '', [ 'PrivateSubnet1 / ', !Ref 'AWS::StackName' ] ]
+        - Key: SubnetType
+          Value: Private
+        - Key: "kubernetes.io/role/internal-elb"
+          Value: "1"
+      VpcId: !Ref Vpc
+
+  PrivateSubnetRouteTableAssociation0:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref NatRouteTable0
+      SubnetId: !Ref PrivateSubnet0
+
+  PrivateSubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref NatRouteTable0
+      SubnetId: !Ref PrivateSubnet1
+
+Outputs:
+  
+  Vpc:
+    Value: !Ref Vpc
+  VpcCidr:
+    Value: !Ref VpcCidr
+  PublicSubnet0:
+    Value: !Ref PublicSubnet0
+  PublicSubnet0Cidr:
+    Value: !Ref PublicSubnet0Cidr
+  PublicSubnet1:
+    Value: !Ref PublicSubnet1
+  PublicSubnet1Cidr:
+    Value: !Ref PublicSubnet1Cidr
+  PrivateSubnet0:
+    Value: !Ref PrivateSubnet0
+  PrivateSubnet0Cidr:
+    Value: !Ref PrivateSubnet0Cidr
+  PrivateSubnet1:
+    Value: !Ref PrivateSubnet1
+  PrivateSubnet1Cidr:
+    Value: !Ref PrivateSubnet1Cidr
