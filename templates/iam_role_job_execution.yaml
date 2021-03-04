@@ -1,0 +1,53 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Create IAM Role for EMR on EKS job execution
+
+Resources:
+
+  JobExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - elasticmapreduce.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      Policies:
+      - PolicyName: EmrEksJobExecPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - ec2:RevokeSecurityGroupIngress
+            - s3:PutObject
+            - s3:GetObject
+            - ec2:AuthorizeSecurityGroupEgress
+            - ec2:AuthorizeSecurityGroupIngress
+            - ec2:CreateSecurityGroup
+            - ec2:RevokeSecurityGroupEgress
+            - ec2:DeleteSecurityGroup
+            - s3:ListBucket
+            - glue:*
+            Resource: "*"
+          - Effect: Allow
+            Action:
+            - logs:CreateLogStream
+            - logs:DescribeLogGroups
+            - logs:DescribeLogStreams
+            - logs:PutLogEvents
+            Resource: "arn:aws:logs:*:*:*"
+
+Outputs:
+  IAMRole:
+    Value: !Ref JobExecutionRole
+    Description: Name of IAM Role for EMR EKS Job Execution 
+  IAMRoleArn:
+    Value: !GetAtt JobExecutionRole.Arn
+    Description: ARN of IAM Role for EMR EKS Job Execution
