@@ -1,0 +1,53 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Creates VPC security groups for EMR Studio
+
+Parameters:
+
+  Vpc:
+    AllowedPattern: ^(vpc-)([a-z0-9]{17})$
+    Description: The Vpc Id of an existing Vpc.
+    Type: AWS::EC2::VPC::Id
+
+Resources:
+
+  WorkspaceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Workspace
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 18888
+          ToPort: 18888
+          DestinationSecurityGroupId: !Ref EngineSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      VpcId:
+        !Ref Vpc
+
+  EngineSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Engine
+      VpcId:
+        !Ref Vpc
+  
+  EngineSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      SourceSecurityGroupId: !GetAtt WorkspaceSecurityGroup.GroupId
+      GroupId: !Ref EngineSecurityGroup
+      IpProtocol: tcp
+      FromPort: 18888
+      ToPort: 18888
+
+Outputs:
+  engineSecurityGroup:
+    Value: !Ref EngineSecurityGroup
+    Description: Security Group ID for the Engine Group
+  workspaceSecurityGroup:
+    Value: !Ref WorkspaceSecurityGroup
+    Description: Security Group ID for the Workspace Group
