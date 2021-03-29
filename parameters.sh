@@ -14,7 +14,7 @@ PublicSubnet1Cidr="172.20.4.0/24" ## CIDR for the public subnet in second AZ
 
 ### EKS Cluster Parameters (start)
 clustername="eks-emr-spark-cluster" ## EKS Cluster Name
-version="1.19" ## EKS Version
+version="1.18" ## EKS Version -- Do not use Version 1.19 at this moment.
 managedNodeName="spark-nodes" ## EKS Managed Node Name
 instanceType="m5.xlarge" ## EC2 Instance Type
 volumeSize="30" ## Volume Size of EC2 EBS Vol
