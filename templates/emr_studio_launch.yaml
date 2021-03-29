@@ -1,0 +1,386 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Creates EMR Studio
+
+Parameters:
+
+  Vpc:
+    AllowedPattern: ^(vpc-)([a-z0-9]{17})$
+    Description: The Vpc Id of an existing Vpc.
+    Type: AWS::EC2::VPC::Id
+  AccountId:
+    AllowedPattern: ^([a-zA-Z0-9]*)$
+    Description: "Account ID"
+    Type: String
+  Region:
+    AllowedPattern: ^([a-z0-9\-]*)$
+    Description: "Region"
+    Type: String
+  EksCluster:
+    AllowedPattern: ^([a-zA-Z0-9\-_]*)$
+    Description: "Name of EKS Cluster"
+    Type: String
+  EmrStudioName:
+    AllowedPattern: ^([a-zA-Z0-9\-_]*)$
+    Description: "Name of EMR Studio"
+    Type: String
+  StudioAuthMode:
+    AllowedPattern: ^([a-zA-Z0-9]*)$
+    Description: "Auth Mode"
+    Type: String
+    Default: SSO
+  StudioDefaultS3Bucket:
+    AllowedPattern: ^([a-zA-Z0-9\-_]*)$
+    Description: "Default S3 Bucket"
+    Type: String
+  Subnet1:
+    AllowedPattern: ^([a-zA-Z0-9\-]*)$
+    Description: "First Private Subnet"
+    Type: String
+  Subnet2:
+    AllowedPattern: ^([a-zA-Z0-9\-]*)$
+    Description: "Second Private Subnet"
+    Type: String
+  IdentityUserName:
+    AllowedPattern: ^([a-zA-Z0-9]*)$
+    Description: "User Name"
+    Type: String
+  IdentityUserType:
+    AllowedPattern: ^(USER|GROUP)$
+    Description: "Identity Type: User | Group"
+    Type: String
+
+Resources:
+
+  WorkspaceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Workspace
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 18888
+          ToPort: 18888
+          DestinationSecurityGroupId: !Ref EngineSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      VpcId:
+        !Ref Vpc
+
+  EngineSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Engine
+      VpcId:
+        !Ref Vpc
+  
+  EngineSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      SourceSecurityGroupId: !GetAtt WorkspaceSecurityGroup.GroupId
+      GroupId: !Ref EngineSecurityGroup
+      IpProtocol: tcp
+      FromPort: 18888
+      ToPort: 18888
+  
+  StudioServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - elasticmapreduce.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: EmrStudioServiceRole
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - ec2:AuthorizeSecurityGroupEgress
+            - ec2:AuthorizeSecurityGroupIngress
+            - ec2:CreateSecurityGroup
+            - ec2:DescribeSecurityGroups
+            - ec2:RevokeSecurityGroupEgress
+            - ec2:CreateNetworkInterface
+            - ec2:CreateNetworkInterfacePermission
+            - ec2:DeleteNetworkInterface
+            - ec2:DeleteNetworkInterfacePermission
+            - ec2:DescribeNetworkInterfaces
+            - ec2:ModifyNetworkInterfaceAttribute
+            - ec2:DescribeTags
+            - ec2:DescribeInstances
+            - ec2:DescribeSubnets
+            - ec2:DescribeVpcs
+            - elasticmapreduce:ListInstances
+            - elasticmapreduce:DescribeCluster
+            - elasticmapreduce:ListSteps
+            Resource: "*"
+          - Effect: Allow
+            Action: ec2:CreateTags
+            Resource: arn:aws:ec2:*:*:network-interface/*
+            Condition:
+              ForAllValues:StringEquals:
+                aws:TagKeys:
+                - aws:elasticmapreduce:editor-id
+                - aws:elasticmapreduce:job-flow-id
+          - Effect: Allow
+            Action:
+            - s3:PutObject
+            - s3:GetObject
+            - s3:GetEncryptionConfiguration
+            - s3:ListBucket
+            - s3:DeleteObject
+            Resource: arn:aws:s3:::*
+          - Effect: Allow
+            Action:
+            - secretsmanager:GetSecretValue
+            Resource: arn:aws:secretsmanager:*:*:secret:*
+  
+  StudioUserRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - elasticmapreduce.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: EmrStudioUserPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Action:
+            - elasticmapreduce:CreateEditor
+            - elasticmapreduce:DescribeEditor
+            - elasticmapreduce:ListEditors
+            - elasticmapreduce:StartEditor
+            - elasticmapreduce:StopEditor
+            - elasticmapreduce:DeleteEditor
+            - elasticmapreduce:OpenEditorInConsole
+            - elasticmapreduce:AttachEditor
+            - elasticmapreduce:DetachEditor
+            - elasticmapreduce:CreateRepository
+            - elasticmapreduce:DescribeRepository
+            - elasticmapreduce:DeleteRepository
+            - elasticmapreduce:ListRepositories
+            - elasticmapreduce:LinkRepository
+            - elasticmapreduce:UnlinkRepository
+            - elasticmapreduce:DescribeCluster
+            - elasticmapreduce:ListInstanceGroups
+            - elasticmapreduce:ListBootstrapActions
+            - elasticmapreduce:ListClusters
+            - elasticmapreduce:ListSteps
+            - elasticmapreduce:CreatePersistentAppUI
+            - elasticmapreduce:DescribePersistentAppUI
+            - elasticmapreduce:GetPersistentAppUIPresignedURL
+            - secretsmanager:CreateSecret
+            - secretsmanager:ListSecrets
+            - emr-containers:DescribeVirtualCluster
+            - emr-containers:ListVirtualClusters
+            - emr-containers:DescribeManagedEndpoint
+            - emr-containers:ListManagedEndpoints
+            - emr-containers:CreateAccessTokenForManagedEndpoint
+            - emr-containers:DescribeJobRun
+            - emr-containers:ListJobRuns
+            Resource: "*"
+            Effect: Allow
+            Sid: AllowBasicActions
+          - Action:
+            - servicecatalog:DescribeProduct
+            - servicecatalog:DescribeProductView
+            - servicecatalog:DescribeProvisioningParameters
+            - servicecatalog:ProvisionProduct
+            - servicecatalog:SearchProducts
+            - servicecatalog:UpdateProvisionedProduct
+            - servicecatalog:ListProvisioningArtifacts
+            - servicecatalog:DescribeRecord
+            - cloudformation:DescribeStackResources
+            Resource: "*"
+            Effect: Allow
+            Sid: AllowIntermediateActions
+          - Action:
+            - elasticmapreduce:RunJobFlow
+            Resource: "*"
+            Effect: Allow
+            Sid: AllowAdvancedActions
+          - Action: iam:PassRole
+            Resource:
+            - !GetAtt StudioServiceRole.Arn
+            - !Join ["",["arn:aws:iam::", !Ref AccountId, ":role/EMR_DefaultRole"]]
+            - !Join ["",["arn:aws:iam::", !Ref AccountId, ":role/EMR_EC2_DefaultRole"]]
+            Effect: Allow
+            Sid: PassRolePermission
+          - Action:
+            - s3:ListAllMyBuckets
+            - s3:ListBucket
+            - s3:GetBucketLocation
+            Resource: arn:aws:s3:::*
+            Effect: Allow
+            Sid: S3ListPermission
+          - Action:
+            - s3:GetObject
+            Resource:
+            - !Join ["", [ "arn:aws:s3:::", !Ref StudioDefaultS3Bucket, "/*" ]]
+            - !Join ["", ["arn:aws:s3:::aws-logs-", !Ref AccountId, "-", !Ref Region, "/elasticmapreduce/*"]]
+            Effect: Allow
+            Sid: S3GetObjectPermission
+
+  StudioUserPolicy:
+    Type: 'AWS::IAM::ManagedPolicy'
+    Properties:
+      Path: /
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+            - elasticmapreduce:CreateEditor
+            - elasticmapreduce:DescribeEditor
+            - elasticmapreduce:ListEditors
+            - elasticmapreduce:StartEditor
+            - elasticmapreduce:StopEditor
+            - elasticmapreduce:DeleteEditor
+            - elasticmapreduce:OpenEditorInConsole
+            - elasticmapreduce:AttachEditor
+            - elasticmapreduce:DetachEditor
+            - elasticmapreduce:CreateRepository
+            - elasticmapreduce:DescribeRepository
+            - elasticmapreduce:DeleteRepository
+            - elasticmapreduce:ListRepositories
+            - elasticmapreduce:LinkRepository
+            - elasticmapreduce:UnlinkRepository
+            - elasticmapreduce:DescribeCluster
+            - elasticmapreduce:ListInstanceGroups
+            - elasticmapreduce:ListBootstrapActions
+            - elasticmapreduce:ListClusters
+            - elasticmapreduce:ListSteps
+            - elasticmapreduce:CreatePersistentAppUI
+            - elasticmapreduce:DescribePersistentAppUI
+            - elasticmapreduce:GetPersistentAppUIPresignedURL
+            - secretsmanager:CreateSecret
+            - secretsmanager:ListSecrets
+            - emr-containers:DescribeVirtualCluster
+            - emr-containers:ListVirtualClusters
+            - emr-containers:DescribeManagedEndpoint
+            - emr-containers:ListManagedEndpoints
+            - emr-containers:CreateAccessTokenForManagedEndpoint
+            - emr-containers:DescribeJobRun
+            - emr-containers:ListJobRuns
+            Resource: "*"
+            Effect: Allow
+            Sid: AllowBasicActions
+          - Action:
+            - servicecatalog:DescribeProduct
+            - servicecatalog:DescribeProductView
+            - servicecatalog:DescribeProvisioningParameters
+            - servicecatalog:ProvisionProduct
+            - servicecatalog:SearchProducts
+            - servicecatalog:UpdateProvisionedProduct
+            - servicecatalog:ListProvisioningArtifacts
+            - servicecatalog:DescribeRecord
+            - cloudformation:DescribeStackResources
+            Resource: "*"
+            Effect: Allow
+            Sid: AllowIntermediateActions
+          - Action:
+            - elasticmapreduce:RunJobFlow
+            Resource: "*"
+            Effect: Allow
+            Sid: AllowAdvancedActions
+          - Action: iam:PassRole
+            Resource:
+            - !GetAtt StudioServiceRole.Arn
+            - !Join ["",["arn:aws:iam::", !Ref AccountId, ":role/EMR_DefaultRole"]]
+            - !Join ["",["arn:aws:iam::", !Ref AccountId, ":role/EMR_EC2_DefaultRole"]]
+            Effect: Allow
+            Sid: PassRolePermission
+          - Action:
+            - s3:ListAllMyBuckets
+            - s3:ListBucket
+            - s3:GetBucketLocation
+            Resource: arn:aws:s3:::*
+            Effect: Allow
+            Sid: S3ListPermission
+          - Action:
+            - s3:GetObject
+            Resource:
+            - !Join ["", [ "arn:aws:s3:::", !Ref StudioDefaultS3Bucket, "/*" ]]
+            - !Join ["", ["arn:aws:s3:::aws-logs-", !Ref AccountId, "-", !Ref Region, "/elasticmapreduce/*"]]
+            Effect: Allow
+            Sid: S3GetObjectPermission
+  
+  EMRStudio:
+    Type: AWS::EMR::Studio
+    Properties: 
+      AuthMode: !Ref StudioAuthMode
+      DefaultS3Location: !Join ["", ["s3://", !Ref StudioDefaultS3Bucket, "/studio/"]]
+      Description: Launch EMR Studio
+      EngineSecurityGroupId: !Ref EngineSecurityGroup
+      Name: !Ref EmrStudioName
+      ServiceRole: !GetAtt StudioServiceRole.Arn
+      SubnetIds: 
+        - !Ref Subnet1
+        - !Ref Subnet2
+      Tags: 
+        - Key: EksCluster
+          Value: !Ref EksCluster
+      UserRole: !GetAtt StudioUserRole.Arn
+      VpcId: !Ref Vpc
+      WorkspaceSecurityGroupId: !Ref WorkspaceSecurityGroup
+
+  EmrStudioUser:
+    Type: AWS::EMR::StudioSessionMapping
+    Properties: 
+      IdentityName: !Ref IdentityUserName
+      IdentityType: !Ref IdentityUserType
+      SessionPolicyArn: !Ref StudioUserPolicy
+      StudioId: !Ref EMRStudio
+    DependsOn: EMRStudio
+
+Outputs:
+  engineSecurityGroup:
+    Value: !Ref EngineSecurityGroup
+    Description: Security Group ID for the Engine Group
+  workspaceSecurityGroup:
+    Value: !Ref WorkspaceSecurityGroup
+    Description: Security Group ID for the Workspace Group
+  StudioServiceIAMRole:
+    Value: !Ref StudioServiceRole
+    Description: Name of IAM Role for EMR Studio Service Role 
+  StudioServiceIAMRoleArn:
+    Value: !GetAtt StudioServiceRole.Arn
+    Description: ARN of IAM Role for EMR Studio Service Role
+  StudioUserIAMRole:
+    Value: !Ref StudioUserRole
+    Description: Name of IAM Role for EMR Studio User Role 
+  StudioUserIAMRoleArn:
+    Value: !GetAtt StudioUserRole.Arn
+    Description: ARN of IAM Role for EMR Studio User Role 
+  IAMPolicyArn:
+    Value: !Ref StudioUserPolicy
+    Description: ARN of IAM Policy for Studio User
+  Subnet1:
+    Value: !Ref Subnet1
+    Description: First Private Subnet
+  Subnet2:
+    Value: !Ref Subnet2
+    Description: Second Private Subnet
+  EMRStudioId:
+    Value: !Ref EMRStudio
+    Description: EMR Studio ID
+  EmrStudioUserId:
+    Value: !Ref EmrStudioUser
+    Description: Studio User ID

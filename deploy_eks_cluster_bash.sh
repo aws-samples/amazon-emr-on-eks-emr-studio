@@ -2,16 +2,10 @@
 
 ### How to run this shell script and pass in the account ID parameter (start)
 #
-#  $ bash deploy_eks_cluster_bash.sh "< account id >" 
+#  $ bash deploy_eks_cluster_bash.sh ## If using default accountid and region of Cloud9 Desktop
+#  $ bash deploy_eks_cluster_bash.sh "<region>" "< account id >" ## If choosing different account id and region
 #
 ### How to run this shell script and pass in the account ID parameter (end)
-
-### Test for account ID parameter passed through else exit from script
-echo $# arguments 
-if [ "$#" -lt 2 ]; then
-    echo "Please make sure you provide 2 parameters: Region and Account ID; example: bash deploy_eks_cluster_bash.sh 'us-east-1' '12345678'";
-    exit 1
-fi
 
 ### Parameters
 
@@ -21,6 +15,14 @@ fi
 region="${1}"  ## Region VPC and cluster will be implemented
 accountid="${2}" ## AWS Account ID
 ### Global parameters (end)
+
+### Test for account ID parameter passed through else exit from script
+echo $# arguments 
+if [ "$#" -lt 2 ]; then
+    accountid=$(aws sts get-caller-identity | jq .Account | sed 's/"//g')
+    region=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
+    echo "Using default $region and $accountid. If not desired, please make sure you provide 2 parameters: Region and Account ID; example: bash deploy_eks_cluster_bash.sh 'us-east-1' '12345678'"
+fi
 
 source ./parameters.sh
 
@@ -59,12 +61,11 @@ cf_stack_status () {
 }
 
 ####################### Functions (end) ###############################
-
-
-####################### Main Script Starts here ##############################
+# Variables for replacing EKS Deployment YAML script
 tagarray=(
     "clustername" 
     "region" 
+    "version" 
     "managedNodeName" 
     "instanceType" 
     "volumeSize" 
@@ -77,6 +78,7 @@ tagarray=(
 tagarrayvalue=(
   "$clustername" 
   "$region" 
+  "$version" 
   "$managedNodeName" 
   "$instanceType" 
   "$volumeSize" 
@@ -168,7 +170,7 @@ for k in ${vpcarray[*]}
 
 done
 
-## Replace tags in the tagarray 
+## Replace tags in the eks deployment file in the tagarray 
 
 stcount=0
 
@@ -177,13 +179,13 @@ for t in ${tagarray[*]}
     tagvalue=$(echo ${tagarrayvalue[${stcount}]} | sed 's/\//\\\//g')
     echo "${t}: ${tagvalue}"
     ((stcount=stcount+1))
-    sedstr="s/%${t}%/${tagvalue}/"
+    sedstr="s/%${t}%/${tagvalue}/g"
     echo $sedstr
     sed -i ${sedstr} temp/eks_cluster_spark_deployment.yaml
 done
 
-## Create EKS Cluster
 
+## Create EKS Cluster
 eksctl create cluster -f temp/eks_cluster_spark_deployment.yaml
 
 ## Check EKS Cluster
@@ -196,7 +198,20 @@ ekscluster_status=$(eksctl get cluster \
 
 echo "EKS Cluster ${clustername} is ${ekscluster_status}."
 
-### Pre-Requisite installs on the Cloud9 
+# Deploy Container Insights for EKS Cluster in CloudWatch
+ClusterName="${clustername}"
+LogRegion="${region}"
+FluentBitHttpPort='2020'
+FluentBitReadFromHead='Off'
+[[ ${FluentBitReadFromHead} = 'On' ]] && FluentBitReadFromTail='Off'|| FluentBitReadFromTail='On'
+[[ -z ${FluentBitHttpPort} ]] && FluentBitHttpServer='Off' || FluentBitHttpServer='On'
+curl https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/quickstart/cwagent-fluent-bit-quickstart.yaml | sed 's/{{cluster_name}}/'${ClusterName}'/;s/{{region_name}}/'${LogRegion}'/;s/{{http_server_toggle}}/"'${FluentBitHttpServer}'"/;s/{{http_server_port}}/"'${FluentBitHttpPort}'"/;s/{{read_from_head}}/"'${FluentBitReadFromHead}'"/;s/{{read_from_tail}}/"'${FluentBitReadFromTail}'"/' | kubectl apply -f - 
+
+
+# Create name space for Spark
+kubectl create ns ${namespace}
+
+### Pre-Requisite installs on the Cloud9 for EKS
 
 ## Install Helm
 curl -sSL https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
@@ -214,18 +229,26 @@ source <(helm completion bash)
 
 eksctl create iamidentitymapping \
   --cluster ${clustername} \
-  --namespace default \
+  --namespace ${namespace} \
   --service-name "emr-containers" \
   --region ${region}
+
+## Create VpcId from EKS
+vpcid=$(eksctl get cluster eks-emr-spark-cluster \
+  --region us-east-1 -o json | jq .[].ResourcesVpcConfig.VpcId | sed 's/"//g')
 
 ## Create OpenID Connect Provider
 
 # Create an IAM OIDC identity provider for your cluster with eksctl
+
 eksctl utils associate-iam-oidc-provider --cluster ${clustername} --region ${region} --approve
 
 ## Create EMR on EKS Job Execution Policy
-
-aws cloudformation create-stack --stack-name ${cf_iam_stackname} --region ${region} --template-body file://templates/iam_role_job_execution.yaml --capabilities CAPABILITY_IAM
+aws cloudformation create-stack \
+  --stack-name ${cf_iam_stackname} \
+  --region ${region} \
+  --template-body file://templates/iam_role_job_execution.yaml \
+  --capabilities CAPABILITY_IAM
 
 ## Check Status before continuing
 cf_stack_status ${cf_iam_stackname}
@@ -246,13 +269,15 @@ echo "Job Execution Role Name: ${role_name}"
 
 aws emr-containers update-role-trust-policy \
   --cluster-name ${clustername} \
-  --namespace default \
+  --namespace ${namespace} \
   --role-name ${role_name} \
   --region ${region}
 
-## Create IAM Policy for the AWS Load Balancer Controller
-
-aws cloudformation create-stack --stack-name ${cf_iam_alb_policy_stackname} --region ${region} --template-body file://templates/iam_policy_alb.yaml --capabilities CAPABILITY_IAM
+aws cloudformation create-stack \
+  --stack-name ${cf_iam_alb_policy_stackname} \
+  --region ${region} \
+  --template-body file://templates/iam_policy_alb.yaml \
+  --capabilities CAPABILITY_IAM
 
 # Check status before moving on
 cf_stack_status ${cf_iam_alb_policy_stackname}
@@ -262,7 +287,6 @@ policy_arn=$(aws cloudformation describe-stacks \
     --region ${region} | jq '.Stacks[].Outputs[]' | jq 'select(.OutputKey=="IAMPolicyRole")' | jq .OutputValue | sed 's/\"//g')
 
 echo "ALB controller Policy ARN: ${policy_arn}"
-
 
 # Create an IAM role and annotate the Kubernetes service account 
 # named aws-load-balancer-controller in the kube-system namespace 
@@ -280,7 +304,7 @@ eksctl create iamserviceaccount \
 roleArn=$(eksctl get iamserviceaccount \
   --cluster ${clustername} \
   --region ${region} \
-  --output json | jq .iam.serviceAccounts | jq '.[] | select(.metadata.name=="aws-load-balancer-controller")' | jq .status.roleARN | sed 's/"//g' | sed 's/\//\\\//g')
+  --output json | jq '.[] | select(.metadata.name=="aws-load-balancer-controller")' | jq .status.roleARN | sed 's/"//g' | sed 's/\//\\\//g')
 
 echo "Role ARN of ALB Controller IAM Role: ${roleArn}"
 
@@ -322,57 +346,29 @@ sleep 15
 
 kubectl get deployment -n kube-system aws-load-balancer-controller
 
-## Creating the Virtual EMR Cluster
 
-aws emr-containers create-virtual-cluster \
-  --name ${virtclustername} \
-  --container-provider "{
-    \"id\": \"${clustername}\",
-    \"type\": \"EKS\",
-    \"info\": {
-      \"eksInfo\": {
-        \"namespace\": \"default\"
-      }
-    } 
-  }" \
-  --region ${region}
+# Create EMR Virtual Cluster
 
-## Verify and get the virtual EMR cluster ID
+aws cloudformation create-stack \
+  --stack-name ${cf_virtclustername} \
+  --template-body file://templates/emr-container-virtual-cluster.yaml \
+  --parameters ParameterKey=VirtualClusterName,ParameterValue="${virtclustername}" \
+    ParameterKey=EksClusterName,ParameterValue="${clustername}" \
+  --region ${region} \
+  --capabilities CAPABILITY_IAM
 
-# Get json of virt cluster
+# Check status before moving on
+cf_stack_status ${cf_virtclustername}
 
-arrlength=$(aws emr-containers list-virtual-clusters --region ${region} | jq '.virtualClusters | length')
+# Get the Virtual Cluster ID
+virtclusterid=$(aws cloudformation describe-stacks \
+  --stack-name ${cf_virtclustername} \
+  --region us-east-1 | jq '.Stacks[].Outputs[]' | jq 'select(.OutputKey=="PrimaryId")' | jq .OutputValue | sed 's/\"//g')
 
-arrcount=0
-virtclusterid=""
-_virtclusterid=""
-virtclusterstate=""
-vc_running=0
+echo "Virtual Cluster ID: $virtclusterid"
 
-while [ ${arrcount} -le ${arrlength} ]
-do
-  virt_name=$(aws emr-containers list-virtual-clusters --region ${region} | jq .virtualClusters[${arrcount}].name | sed 's/"//g')
-
-  if [[ "${virt_name}" == "${virtclustername}" ]]; then
-
-    _virtclusterid=$(aws emr-containers list-virtual-clusters --region ${region} | jq .virtualClusters[${arrcount}].id | sed 's/"//g')
-
-    virtclusterstate=$(aws emr-containers list-virtual-clusters --region ${region} | jq .virtualClusters[${arrcount}].state | sed 's/"//g')
-
-    echo "Virt Cluster: ${virt_name} | ${_virtclusterid} is in ${virtclusterstate} state."
-
-    if [[ "${virtclusterstate}" == "RUNNING" ]]; then
-      vc_running=$((vc_running+1))
-      virtclusterid=${_virtclusterid}
-    fi
-  fi
-
-  arrcount=$((arrcount+1))
-
-done
-
-
-## Create Virtual Endpoint
+# Create Managed Endpoint
+echo "Creating Managed Endpoint ..."
 
 aws emr-containers create-managed-endpoint \
 --type JUPYTER_ENTERPRISE_GATEWAY \
@@ -394,7 +390,6 @@ aws emr-containers create-managed-endpoint \
     ]
   }'
 
-
 virt_ep_state="CREATING"
 
 while [ "${virt_ep_state}" == "CREATING" ]
@@ -412,102 +407,8 @@ do
   sleep 15
 
 done
-
-### Create EMR Studio Steps
-
-## Create EMR Studio Security Groups
-
-aws cloudformation create-stack --stack-name ${cf_studio_sg_stackname} \
-  --region ${region} \
-  --template-body file://templates/emr_studio_security_groups.yaml \
-  --parameters ParameterKey=Vpc,ParameterValue="${vpcid}" \
-  --capabilities CAPABILITY_IAM
-
-# Check status before moving on
-cf_stack_status ${cf_studio_sg_stackname}
-
-## Create Security Groups for EMR Studio
-
-engineSg=$(aws cloudformation describe-stacks \
-    --stack-name ${cf_studio_sg_stackname} \
-    --region ${region} | jq '.Stacks[].Outputs[]' | jq 'select(.OutputKey=="engineSecurityGroup")' | jq .OutputValue | sed 's/\"//g')
-
-echo "Engine Security Group: ${engineSg}"
-
-workspaceSg=$(aws cloudformation describe-stacks \
-    --stack-name ${cf_studio_sg_stackname} \
-    --region ${region} | jq '.Stacks[].Outputs[]' | jq 'select(.OutputKey=="workspaceSecurityGroup")' | jq .OutputValue | sed 's/\"//g')
-
-echo "Workspace Security Group: ${workspaceSg}"
-
-########### Create IAM roles for EMR Studio
-
-### Create service IAM role for EMR Studio
-
-aws cloudformation create-stack --stack-name ${cf_studio_role_service_stackname} \
-  --region ${region} \
-  --template-body file://templates/emr_studio_service_role.yaml \
-  --capabilities CAPABILITY_IAM
-
-# Check status before moving on
-cf_stack_status ${cf_studio_role_service_stackname}
-
-role_arn_service=$(aws cloudformation describe-stacks \
-    --stack-name ${cf_studio_role_service_stackname} \
-    --region ${region} | jq '.Stacks[].Outputs[]' | jq 'select(.OutputKey=="IAMRoleArn")' | jq .OutputValue | sed 's/\"//g')
-
-echo "Studio Service IAM Role ARN: ${role_arn_service}"
-
-### Create user IAM role for EMR Studio
-
-cp templates/emr_studio_user_role.yaml.template temp/emr_studio_user_role.yaml
-
-## Set the CloudFormation template variables for deploying
-
-_role_arn_service=$(echo ${role_arn_service} | sed 's/\//\\\//g')
-
-sed -i "s/%accountid%/${accountid}/g" temp/emr_studio_user_role.yaml
-sed -i "s/%studio_default_s3_location_bucket%/${studio_default_s3_location_bucket}/" temp/emr_studio_user_role.yaml
-sed -i "s/%region%/${region}/g" temp/emr_studio_user_role.yaml
-sed -i "s/%role_arn_service%/${_role_arn_service}/" temp/emr_studio_user_role.yaml
-
-aws cloudformation create-stack --stack-name ${cf_studio_role_user_stackname} \
-  --region ${region} \
-  --template-body file://temp/emr_studio_user_role.yaml \
-  --capabilities CAPABILITY_IAM
-
-# Check status before moving on
-cf_stack_status ${cf_studio_role_user_stackname}
-
-role_arn_user=$(aws cloudformation describe-stacks \
-    --stack-name ${cf_studio_role_user_stackname} \
-    --region ${region} | jq '.Stacks[].Outputs[]' | jq 'select(.OutputKey=="IAMRoleArn")' | jq .OutputValue | sed 's/\"//g')
-
-echo "Studio User IAM Role ARN: ${role_arn_user}"
-
-cp templates/iam_policy_studio_user.yaml.template temp/iam_policy_studio_user.yaml
-
-sed -i "s/%accountid%/${accountid}/g" temp/iam_policy_studio_user.yaml
-sed -i "s/%studio_default_s3_location_bucket%/${studio_default_s3_location_bucket}/" temp/iam_policy_studio_user.yaml
-sed -i "s/%region%/${region}/g" temp/iam_policy_studio_user.yaml
-sed -i "s/%role_arn_service%/${_role_arn_service}/" temp/iam_policy_studio_user.yaml
-
-## Create IAM Policy for EMR Studio
-aws cloudformation create-stack --stack-name ${cf_studio_policy_user_stackname} \
-  --region ${region} \
-  --template-body file://temp/iam_policy_studio_user.yaml \
-  --capabilities CAPABILITY_IAM
-
-cf_stack_status ${cf_studio_policy_user_stackname}
-
-policy_studio_user_arn=$(aws cloudformation describe-stacks \
-  --stack-name ${cf_studio_policy_user_stackname} \
-  --region ${region} | jq '.Stacks[].Outputs[]' | jq 'select(.OutputKey=="IAMPolicyArn")' | jq .OutputValue | sed 's/\"//g')
-
-echo "User Policy ARN for EMR Studio: ${policy_studio_user_arn}"
-
-## Get EKS cluster subnets
-
+  
+# Get private subnets
 subnetArray=$(aws eks describe-cluster --name ${clustername} \
 --region ${region} | jq .cluster.resourcesVpcConfig.subnetIds)
 
@@ -515,52 +416,50 @@ arraycount=$(echo ${subnetArray} | jq length)
 arraycount=$((arraycount -1))
 
 i=0
-subnetString=""
+priv_count=0
+sbnet1=""
+sbnet2=""
 
 while [ ${i} -le ${arraycount} ]; do
 
-  subnetString+=$(echo $subnetArray | jq .[${i}];i=$((i+1)))
-  subnetString+=" "
-  #echo ${subnetString}
+  subnetString=$(echo $subnetArray | jq .[${i}];i=$((i+1)))
+  subnetString=$(echo $subnetString | sed 's/"//g')
+  
+  # Check for private subnet
+  exist=$(aws ec2 describe-subnets \
+  --subnet-ids ${subnetString} \
+  --region $region | jq .Subnets | jq .[].Tags | jq .[] | jq 'select(.Key=="kubernetes.io/role/internal-elb")' | jq .Value | sed 's/"//g')
+  
+  if [ "${exist}" == "1" ] && [ "$priv_count" == "1" ]; then
+    priv_count=$((priv_count+1))
+    subnet2=${subnetString}
+  fi
+  
+  if [ "${exist}" == "1" ] && [ "$priv_count" == "0" ]; then
+    priv_count=$((priv_count+1))
+    subnet1=${subnetString}
+  fi
+  
   i=$((i+1))
 
 done
+echo "Private subnet 1: $subnet1"
+echo "Private subnet 2: $subnet2"
 
-subnetString=$(echo ${subnetString} | sed 's/"//g')
-echo "Subnets to be used: ${subnetString}"
-
-## Create EMR Studio
-
-studio_json=$(aws emr create-studio \
-  --name ${studio_name} \
-  --auth-mode ${studio_auth_mode} \
-  --vpc-id ${vpcid} \
-  --subnet-ids ${subnetString} \
-  --service-role ${role_arn_service} \
-  --user-role ${role_arn_user} \
-  --workspace-security-group-id ${workspaceSg} \
-  --engine-security-group-id ${engineSg} \
-  --default-s3-location ${studio_default_s3_location} \
-  --region ${region})
-
-studio_id=$(echo ${studio_json} | jq .StudioId | sed 's/"//g')
-studio_url=$(echo ${studio_json} | jq .Url | sed 's/"//g')
-
-echo "Studio created... ID: ${studio_id} | URL: ${studio_url}"
-
-## Assign user to EMR Studio
-
-aws emr create-studio-session-mapping \
- --studio-id ${studio_id} \
- --identity-name ${studio_user_to_map} \
- --identity-type USER \
- --session-policy-arn ${policy_studio_user_arn}
-
-## List Studio mapping to user
-
-aws emr list-studio-session-mappings --region ${region}
-
-## Conclusion
-
-echo "Go to ${studio_url} and login using ${studio_user_to_map} ..."
-
+# Create EMR Studio and map user and IAM policy to Studio
+aws cloudformation create-stack \
+  --stack-name ${cf_launch_studio_stackname} \
+  --template-body file://templates/emr_studio_launch.yaml \
+  --parameters ParameterKey=Vpc,ParameterValue="${vpcid}" \
+    ParameterKey=AccountId,ParameterValue="${accountid}" \
+    ParameterKey=Region,ParameterValue="${region}" \
+    ParameterKey=EksCluster,ParameterValue="${clustername}" \
+    ParameterKey=EmrStudioName,ParameterValue="${studio_name}" \
+    ParameterKey=StudioAuthMode,ParameterValue="${studio_auth_mode}" \
+    ParameterKey=StudioDefaultS3Bucket,ParameterValue="${studio_default_s3_location_bucket}" \
+    ParameterKey=Subnet1,ParameterValue="${subnet1}" \
+    ParameterKey=Subnet2,ParameterValue="${subnet2}" \
+    ParameterKey=IdentityUserName,ParameterValue="${studio_user_to_map}" \
+    ParameterKey=IdentityUserType,ParameterValue="${studio_usertype_to_map}" \
+  --region ${region} \
+  --capabilities CAPABILITY_IAM

@@ -3,6 +3,8 @@ kind: ClusterConfig
 metadata:
   name: %clustername%
   region: %region%
+  version: "%version%"
+  
 vpc:
   id: "%Vpc%"
   cidr: "%VpcCidr%"

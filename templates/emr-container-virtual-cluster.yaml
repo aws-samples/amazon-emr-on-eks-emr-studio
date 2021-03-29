@@ -1,0 +1,32 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Creates New EMR virtual cluster
+
+Parameters:
+  VirtualClusterName:
+    AllowedPattern: ^([a-zA-Z0-9\-]*)$
+    Description: "EMR Virtual Cluster Name"
+    Type: String
+  EksClusterName:
+    AllowedPattern: ^([a-zA-Z0-9\-]*)$
+    Description: "EKS Cluster Name"
+    Type: String
+
+Resources:
+  EMRVirtualCluster:
+    Type: 'AWS::EMRContainers::VirtualCluster'
+    Properties:
+      Name: !Ref VirtualClusterName
+      ContainerProvider:
+        Type: 'EKS'
+        Id: !Ref EksClusterName
+        Info:
+          EksInfo:
+            Namespace: 'sparkns'
+      Tags:
+        - Key: Cluster
+          Value: !Ref EksClusterName
+Outputs:
+  PrimaryId:
+    Value: !Ref EMRVirtualCluster

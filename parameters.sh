@@ -1,9 +1,5 @@
 ### Parameters
 
-############################################# NOTE #################################################
-# The values below are suggested only as an example. CHANGE them to fit your environment
-####################################################################################################
-
 ########## Parameters (Start)
 
 ### VPC Parameters (start)
@@ -18,6 +14,7 @@ PublicSubnet1Cidr="172.20.4.0/24" ## CIDR for the public subnet in second AZ
 
 ### EKS Cluster Parameters (start)
 clustername="eks-emr-spark-cluster" ## EKS Cluster Name
+version="1.19" ## EKS Version
 managedNodeName="spark-nodes" ## EKS Managed Node Name
 instanceType="m5.xlarge" ## EC2 Instance Type
 volumeSize="30" ## Volume Size of EC2 EBS Vol
@@ -29,8 +26,10 @@ policyarn="arn:aws:iam::${accountid}:policy/s3-eks-spark-bucket"  ## Additional 
 ### EKS Cluster Parameters (end)
 
 ### Virtual EMR Cluster Parameters (start)
+namespace="sparkns"
 virtclustername="virt-emr-cluster" ## EKS Cluster Name
 emr_release_label="emr-6.2.0-latest" ## EMR Release Label version
+cf_virtclustername="cf-virt-emr-cluster"
 ### Virtual EMR Cluster Parameters (end)
 
 ### Virtual Managed Endpoint (start)
@@ -48,15 +47,17 @@ certarn="arn:aws:acm:${region}:${accountid}:certificate/21477ffd-6504-4632-bb2e-
 ### Certificate Information (end)
 
 ### EMR Studio Parameters (start)
-studio_name="emr_studio_1"
-studio_auth_mode="SSO"
+studio_name="emr-studio-1" # Name of the EMR Studio desired
+cf_launch_studio_stackname="cf-emr-studio-1" # CloudFormation Stack name that launches EMR Studio
+studio_auth_mode="SSO" # The type of Authentication for EMR Studio -- keep it as SSO for this example
 cf_studio_sg_stackname="emr-studio-securitygroup" # CloudFormation Stack Name for Security groups for EMR Studio
 cf_studio_role_service_stackname="emr-studio-service-role" # CloudFormation Stack Name for Service IAM Role for EMR Studio
 cf_studio_role_user_stackname="emr-studio-user-role" # CloudFormation Stack Name for User IAM Role for EMR Studio
 cf_studio_policy_user_stackname="emr-studio-user-policy" # CloudFormation Stack Name for User IAM Policy for EMR Studio
-studio_default_s3_location_bucket="< BUCKET NAME >" # S3 bucket must be in the same region
+studio_default_s3_location_bucket="tanmatth-emr-eks-us-east-1" # S3 bucket must be in the same region
 studio_default_s3_location="s3://${studio_default_s3_location_bucket}/studio/"
-studio_user_to_map=""
+studio_usertype_to_map="USER" # Type -- USER | GROUP
+studio_user_to_map="matthew" # Name of the user in your SSO set up that will be associated with the EMR Studio
 ### EMR Studio Parameters (end)
 
 
