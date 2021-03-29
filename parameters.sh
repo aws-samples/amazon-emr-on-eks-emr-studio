@@ -54,10 +54,10 @@ cf_studio_sg_stackname="emr-studio-securitygroup" # CloudFormation Stack Name fo
 cf_studio_role_service_stackname="emr-studio-service-role" # CloudFormation Stack Name for Service IAM Role for EMR Studio
 cf_studio_role_user_stackname="emr-studio-user-role" # CloudFormation Stack Name for User IAM Role for EMR Studio
 cf_studio_policy_user_stackname="emr-studio-user-policy" # CloudFormation Stack Name for User IAM Policy for EMR Studio
-studio_default_s3_location_bucket="tanmatth-emr-eks-us-east-1" # S3 bucket must be in the same region
+studio_default_s3_location_bucket="< BUCKET NAME >" # S3 bucket must be in the same region
 studio_default_s3_location="s3://${studio_default_s3_location_bucket}/studio/"
 studio_usertype_to_map="USER" # Type -- USER | GROUP
-studio_user_to_map="matthew" # Name of the user in your SSO set up that will be associated with the EMR Studio
+studio_user_to_map="< USER NAME >" # Name of the user in your SSO set up that will be associated with the EMR Studio
 ### EMR Studio Parameters (end)
 
 
