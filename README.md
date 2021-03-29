@@ -56,6 +56,8 @@ Before running the script, have the AWS account id available and the region.
 ```
 # Launch the script
 $ bash ./deploy_eks_cluster_bash.sh '<Account ID>' '<region>'
+## If using default region and account ID of your Cloud9 Desktop
+$ bash ./deploy_eks_cluster_bash.sh
 
 ...
 ## Once the script is completed, you will see a line that looks like this:
