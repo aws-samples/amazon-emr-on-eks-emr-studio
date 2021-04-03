@@ -234,7 +234,7 @@ eksctl create iamidentitymapping \
   --region ${region}
 
 ## Create VpcId from EKS
-vpcid=$(eksctl get cluster eks-emr-spark-cluster \
+vpcid=$(eksctl get cluster ${clustername} \
   --region us-east-1 -o json | jq .[].ResourcesVpcConfig.VpcId | sed 's/"//g')
 
 ## Create OpenID Connect Provider
