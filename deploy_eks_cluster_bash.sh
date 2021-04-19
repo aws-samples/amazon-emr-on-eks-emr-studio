@@ -354,6 +354,7 @@ aws cloudformation create-stack \
   --template-body file://templates/emr-container-virtual-cluster.yaml \
   --parameters ParameterKey=VirtualClusterName,ParameterValue="${virtclustername}" \
     ParameterKey=EksClusterName,ParameterValue="${clustername}" \
+    ParameterKey=EksNamespace,ParameterValue="${namespace}" \
   --region ${region} \
   --capabilities CAPABILITY_IAM
 
