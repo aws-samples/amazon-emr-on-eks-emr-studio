@@ -43,7 +43,7 @@ cf_iam_alb_policy_stackname="emr-eks-aws-alb-policy-stack" # CloudFormation Stac
 ### IAM Roles and policies (end)
 
 ### Certificate Information (start)
-certarn="arn:aws:acm:${region}:${accountid}:certificate/21477ffd-6504-4632-bb2e-1d4f00d5473e" # ARN of the SSL/TLS cert to use from ACM
+certarn="arn:aws:acm:${region}:${accountid}:certificate/XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" # ARN of the SSL/TLS cert to use from ACM
 ### Certificate Information (end)
 
 ### EMR Studio Parameters (start)
