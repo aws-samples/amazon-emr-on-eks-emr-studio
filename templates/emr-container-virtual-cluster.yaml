@@ -12,6 +12,10 @@ Parameters:
     AllowedPattern: ^([a-zA-Z0-9\-]*)$
     Description: "EKS Cluster Name"
     Type: String
+  EksNamespace:
+    AllowedPattern: ^([a-zA-Z0-9]*)$
+    Description: "EKS Namespace for Spark"
+    Type: String
 
 Resources:
   EMRVirtualCluster:
@@ -23,7 +27,7 @@ Resources:
         Id: !Ref EksClusterName
         Info:
           EksInfo:
-            Namespace: 'sparkns'
+            Namespace: !Ref EksNamespace
       Tags:
         - Key: Cluster
           Value: !Ref EksClusterName
