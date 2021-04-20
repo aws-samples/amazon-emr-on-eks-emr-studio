@@ -55,6 +55,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Join [ '', [ 'Vpc / ', !Ref 'AWS::StackName' ] ]
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: true
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
@@ -82,6 +84,8 @@ Resources:
           Value: Public
         - Key: "kubernetes.io/role/elb"
           Value: "1"
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: true
       VpcId: !Ref Vpc
 
   PublicSubnet1:
@@ -97,6 +101,8 @@ Resources:
           Value: Public
         - Key: "kubernetes.io/role/elb"
           Value: "1"
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: true
       VpcId: !Ref Vpc
 
   PublicRoute:
@@ -171,6 +177,8 @@ Resources:
           Value: Private
         - Key: "kubernetes.io/role/internal-elb"
           Value: "1"
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: true
       VpcId: !Ref Vpc
 
   PrivateSubnet1:
@@ -186,6 +194,8 @@ Resources:
           Value: Private
         - Key: "kubernetes.io/role/internal-elb"
           Value: "1"
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: true
       VpcId: !Ref Vpc
 
   PrivateSubnetRouteTableAssociation0:
