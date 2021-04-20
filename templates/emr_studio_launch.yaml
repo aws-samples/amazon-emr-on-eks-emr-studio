@@ -221,6 +221,10 @@ Resources:
             Condition:
               StringEquals:
                 aws:ResourceTag/for-use-with-amazon-emr-managed-policies: 'true'
+          - Sid: AllowS3All
+            Effect: Allow
+            Action: s3:*
+            Resource: "*"
 
   StudioUserRole:
     Type: AWS::IAM::Role
