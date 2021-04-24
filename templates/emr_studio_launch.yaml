@@ -233,6 +233,7 @@ Resources:
             - s3:ListBucket
             - s3:DeleteObject
             Resource:
+            - !Join ["", [ "arn:aws:s3:::", !Ref StudioDefaultS3Bucket ]]
             - !Join ["", [ "arn:aws:s3:::", !Ref StudioDefaultS3Bucket, "/*" ]]
             - !Join ["", ["arn:aws:s3:::aws-logs-", !Ref AccountId, "-", !Ref Region, "/elasticmapreduce/*"]]
             Effect: Allow
@@ -344,7 +345,7 @@ Resources:
             Effect: Allow
           - Sid: AllowS3ReadOnlyAccessToLogs
             Action:
-            - s3:GetObject
+            - s3:*
             Resource:
             - !Join ["", [ "arn:aws:s3:::", !Ref StudioDefaultS3Bucket, "/*" ]]
             - !Join ["", ["arn:aws:s3:::aws-logs-", !Ref AccountId, "-", !Ref Region, "/elasticmapreduce/*"]]
@@ -446,7 +447,7 @@ Resources:
             Effect: Allow
           - Sid: AllowS3ReadOnlyAccessToLogs
             Action:
-            - s3:GetObject
+            - s3:*
             Resource:
             - !Join ["", [ "arn:aws:s3:::", !Ref StudioDefaultS3Bucket, "/*" ]]
             - !Join ["", ["arn:aws:s3:::aws-logs-", !Ref AccountId, "-", !Ref Region, "/elasticmapreduce/*"]]
