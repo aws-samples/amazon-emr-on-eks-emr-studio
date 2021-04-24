@@ -213,18 +213,25 @@ Resources:
             - ec2:DescribeSubnets
             - ec2:DescribeVpcs
             Resource: "*"
-          - Sid: AllowSecretsManagerReadOnlyActionsWithEMRTags
-            Effect: Allow
+#          - Sid: AllowSecretsManagerReadOnlyActionsWithEMRTags
+#            Effect: Allow
+#            Action:
+#            - secretsmanager:GetSecretValue
+#            Resource: arn:aws:secretsmanager:*:*:secret:*
+#            Condition:
+#              StringEquals:
+#                aws:ResourceTag/for-use-with-amazon-emr-managed-policies: 'true'
+#          - Sid: AllowS3All
+#            Effect: Allow
+#            Action: s3:*
+#            Resource: "*"
+          - Sid: AllowS3ReadOnlyAccessToLogs
             Action:
-            - secretsmanager:GetSecretValue
-            Resource: arn:aws:secretsmanager:*:*:secret:*
-            Condition:
-              StringEquals:
-                aws:ResourceTag/for-use-with-amazon-emr-managed-policies: 'true'
-          - Sid: AllowS3All
+            - s3:GetObject
+            Resource:
+            - !Join ["", [ "arn:aws:s3:::", !Ref StudioDefaultS3Bucket, "/*" ]]
+            - !Join ["", ["arn:aws:s3:::aws-logs-", !Ref AccountId, "-", !Ref Region, "/elasticmapreduce/*"]]
             Effect: Allow
-            Action: s3:*
-            Resource: "*"
 
   StudioUserRole:
     Type: AWS::IAM::Role
