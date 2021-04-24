@@ -236,7 +236,7 @@ eksctl create iamidentitymapping \
 
 ## Create VpcId from EKS
 vpcid=$(eksctl get cluster ${clustername} \
-  --region us-east-1 -o json | jq .[].ResourcesVpcConfig.VpcId | sed 's/"//g')
+  --region ${region} -o json | jq .[].ResourcesVpcConfig.VpcId | sed 's/"//g')
 
 ## Create OpenID Connect Provider
 
@@ -365,7 +365,7 @@ cf_stack_status ${cf_virtclustername}
 # Get the Virtual Cluster ID
 virtclusterid=$(aws cloudformation describe-stacks \
   --stack-name ${cf_virtclustername} \
-  --region us-east-1 | jq '.Stacks[].Outputs[]' | jq 'select(.OutputKey=="PrimaryId")' | jq .OutputValue | sed 's/\"//g')
+  --region ${region} | jq '.Stacks[].Outputs[]' | jq 'select(.OutputKey=="PrimaryId")' | jq .OutputValue | sed 's/\"//g')
 
 echo "Virtual Cluster ID: $virtclusterid"
 
