@@ -214,11 +214,10 @@ kubectl create ns ${namespace}
 ### Pre-Requisite installs on the Cloud9 for EKS
 
 ## Install Helm
-bash helm/get-helm-3
+tar -zxf helm/helm-v3.5.4-linux-amd64.tar.gz --directory ./temp/  
+sudo mv temp/linux-amd64/helm /usr/local/bin/helm
 
 helm repo add stable https://charts.helm.sh/stable
-
-#helm search repo stable
 
 helm completion bash >> ~/.bash_completion
 . /etc/profile.d/bash_completion.sh
