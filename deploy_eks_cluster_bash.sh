@@ -214,8 +214,7 @@ kubectl create ns ${namespace}
 ### Pre-Requisite installs on the Cloud9 for EKS
 
 ## Install Helm
-curl -o temp/get-helm-3.sh -sSL https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
-bash temp/get-helm-3.sh
+bash helm/get-helm-3
 
 helm repo add stable https://charts.helm.sh/stable
 
