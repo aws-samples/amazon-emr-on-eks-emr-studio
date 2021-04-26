@@ -345,7 +345,11 @@ Resources:
             Effect: Allow
           - Sid: AllowS3ReadOnlyAccessToLogs
             Action:
-            - s3:*
+            - s3:GetObject
+            - s3:PutObject
+            - s3:GetEncryptionConfiguration
+            - s3:ListBucket
+            - s3:DeleteObject
             Resource:
             - !Join ["", [ "arn:aws:s3:::", !Ref StudioDefaultS3Bucket, "/*" ]]
             - !Join ["", ["arn:aws:s3:::aws-logs-", !Ref AccountId, "-", !Ref Region, "/elasticmapreduce/*"]]
@@ -447,7 +451,11 @@ Resources:
             Effect: Allow
           - Sid: AllowS3ReadOnlyAccessToLogs
             Action:
-            - s3:*
+            - s3:GetObject
+            - s3:PutObject
+            - s3:GetEncryptionConfiguration
+            - s3:ListBucket
+            - s3:DeleteObject
             Resource:
             - !Join ["", [ "arn:aws:s3:::", !Ref StudioDefaultS3Bucket, "/*" ]]
             - !Join ["", ["arn:aws:s3:::aws-logs-", !Ref AccountId, "-", !Ref Region, "/elasticmapreduce/*"]]
