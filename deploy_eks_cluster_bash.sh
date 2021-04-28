@@ -463,3 +463,13 @@ aws cloudformation create-stack \
     ParameterKey=IdentityUserType,ParameterValue="${studio_usertype_to_map}" \
   --region ${region} \
   --capabilities CAPABILITY_IAM
+
+studio_json=$(aws cloudformation describe-stacks --stack-name ${cf_launch_studio_stackname} --region $region | jq .Stacks[].Outputs[] | jq 'select(.OutputKey=="EMRStudioId")')
+emr_studio_id=$(echo $studio_json | jq .OutputValue | sed 's/"//g')
+
+studio_info_json=$(aws emr describe-studio --region $region --studio-id $emr_studio_id)
+studio_url=$(echo $studio_info_json | jq .Studio.Url | sed 's/"//g')
+
+## Conclusion
+
+echo "Go to ${studio_url} and login using ${studio_user_to_map} ..."
