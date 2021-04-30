@@ -180,7 +180,7 @@ for t in ${tagarray[*]}
     echo "${t}: ${tagvalue}"
     ((stcount=stcount+1))
     sedstr="s/%${t}%/${tagvalue}/g"
-    echo $sedstr
+    #echo $sedstr
     sed -i ${sedstr} temp/eks_cluster_spark_deployment.yaml
 done
 
