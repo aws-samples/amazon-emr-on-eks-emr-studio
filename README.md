@@ -67,3 +67,23 @@ Go to https://***. emrstudio-prod.us-east-1.amazonaws.com and login using < SSO 
 
 ```
 
+### Cleaning up and removing the deployment entirely
+To remove the entire deployment, follow the steps outlined below:
+
+#### Remove the managed endpoint that was created by doing the following steps
+
+1. Identify the virtual cluster id:
+
+```
+$ aws emr-containers list-virtual-clusters --region ${region} | jq .virtualClusters | jq '.[] | select(.state=="RUNNING")'
+{
+  "id": "abcd1efgh2ijklmn3opqr4st",
+  "name": "virt-emr-cluster-demo",
+  "arn": "arn:aws:emr-containers:us-east-1:123456789012:/virtualclusters/abcd1efgh2ijklmn3opqr4st",
+  "state": "RUNNING",
+```
+2. Find the Managed endpoint ID:
+
+```
+```
+4. 
