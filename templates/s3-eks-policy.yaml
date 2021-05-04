@@ -1,0 +1,35 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Creates optional IAM Policy for EMR Studio to access S3 bucket
+
+Parameters:
+
+  StudioDefaultS3Bucket:
+    AllowedPattern: ^([a-zA-Z0-9\-_]*)$
+    Description: "Default S3 Bucket"
+    Type: String
+
+Resources:
+
+  S3EksPolicy:
+    Type: 'AWS::IAM::ManagedPolicy'
+    Properties:
+      Path: /
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: AllowS3Bucket
+            Effect: Allow
+            Action:
+            - s3:PutObject
+            - s3:GetObject
+            - s3:ListBucket
+            Resource:
+            - !Join ["", [ "arn:aws:s3:::", !Ref StudioDefaultS3Bucket ]]
+            - !Join ["", [ "arn:aws:s3:::", !Ref StudioDefaultS3Bucket, "/*" ]]
+
+Outputs:
+  IAMPolicyArn:
+    Value: !Ref S3EksPolicy
+    Description: ARN of IAM Policy for optional S3 policy
