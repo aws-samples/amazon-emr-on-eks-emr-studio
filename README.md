@@ -85,5 +85,14 @@ $ aws emr-containers list-virtual-clusters --region ${region} | jq .virtualClust
 2. Find the Managed endpoint ID:
 
 ```
+$ aws emr-containers list-managed-endpoints --region ${region} --virtual-cluster-id abcd1efgh2ijklmn3opqr4st
+    "endpoints": [
+        {
+            "id": "abcdefghijklm",
+            "name": "virtual-emr-endpoint-demo",
+            "arn": "arn:aws:emr-containers:us-east-1:123456789012:/virtualclusters/abcd1efgh2ijklmn3opqr4st/endpoints/abcdefghijklm",
+            "virtualClusterId": "abcd1efgh2ijklmn3opqr4st",
+            "type": "JUPYTER_ENTERPRISE_GATEWAY",
+            "state": "ACTIVE",
 ```
 4. 
