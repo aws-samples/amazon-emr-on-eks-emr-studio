@@ -126,12 +126,38 @@ $ aws em6. r-containers delete-virtual-cluster --region ${region} --id abcd1efgh
 }
 ```
 
-6. Delete the CloudFormation stacks
+6. Delete the CloudFormation stacks and eksctl created cluster
 
 ```
 $ source ./parameters.sh
 
 $ aws cloudformation delete-stack --stack-name ${cf_launch_studio_stackname} --region ${region}
+
+$ aws cloudformation delete-stack \
+  --stack-name ${cf_virtclustername} \
+  --region ${region}
+
+$ aws cloudformation delete-stack \
+  --stack-name eksctl-${clustername}-addon-iamserviceaccount-kube-system-aws-load-balancer-controller \
+  --region ${region}
+
+$ aws cloudformation delete-stack \
+  --stack-name ${cf_iam_alb_policy_stackname} \
+  --region ${region}
+
+$ aws cloudformation delete-stack \
+  --stack-name ${cf_iam_stackname} \
+  --region ${region}
+
+$ eksctl delete cluster -f temp/eks_cluster_spark_deployment.yaml 
+
+$ aws cloudformation delete-stack \
+  --stack-name ${vpcstack} \
+  --region ${region}
+
+$ aws cloudformation delete-stack \
+  --stack-name cf_iam_s3bucket_policy= \
+  --region ${region}
 
 ```
 
