@@ -1,11 +1,10 @@
 #!/bin/bash
 
-### How to run this shell script and pass in the account ID parameter (start)
+### How to run this shell script (start)
 #
-#  $ bash deploy_eks_cluster_bash.sh ## If using default accountid and region of Cloud9 Desktop
-#  $ bash deploy_eks_cluster_bash.sh "<region>" "< account id >" ## If choosing different account id and region
+#  $ bash deploy_eks_cluster_bash.sh 
 #
-### How to run this shell script and pass in the account ID parameter (end)
+### How to run this shell script (end)
 
 ### Instruction page before install
 
