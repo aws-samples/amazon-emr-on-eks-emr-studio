@@ -160,6 +160,26 @@ $ aws cloudformation delete-stack \
   --region ${region}
 
 ```
+6. Remove the S3 bucket created
 
+```
+$ aws s3 rm --recursive s3://tanmatth-emr-eks-studio-demo/ \
+  --region ${region}
 
+$ aws s3 rb  s3://tanmatth-emr-eks-studio-demo/ \
+  --region ${region}
+```
+
+7. Remove the Certificate
+
+```
+$ certarnjson=$(aws acm list-certificates \
+  --region ${region} | jq .CertificateSummaryList | jq ".[] | select (.DomainName==\"${certdomain}\")") 
+ 
+$ certarn=$(echo $certarnjson | jq .CertificateArn | sed 's/"//g')
+
+$ aws acm delete-certificate \
+  --certificate-arn $certarn \
+  --region $region
+```
 
