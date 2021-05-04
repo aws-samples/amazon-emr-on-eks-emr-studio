@@ -519,7 +519,7 @@ virtclusterid=$(aws cloudformation describe-stacks \
 echo "Virtual Cluster ID: $virtclusterid"
 
 # Create Certificate for use in Managed Endpoint
-certdomain="*.emreksdemo.com"
+#certdomain taken from parameters.sh
 openssl req -x509 -newkey rsa:1024 \
   -keyout temp/privateKey.pem \
   -out temp/certificateChain.pem -days 365 -nodes \
