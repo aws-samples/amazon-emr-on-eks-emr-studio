@@ -156,7 +156,7 @@ $ aws cloudformation delete-stack \
   --region ${region}
 
 $ aws cloudformation delete-stack \
-  --stack-name cf_iam_s3bucket_policy= \
+  --stack-name ${cf_iam_s3bucket_policy} \
   --region ${region}
 
 ```
