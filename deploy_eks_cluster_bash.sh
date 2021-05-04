@@ -7,22 +7,154 @@
 #
 ### How to run this shell script and pass in the account ID parameter (end)
 
+### Instruction page before install
+
+echo "Deployment Script -- EMR on EKS with EMR Studio"
+echo "-----------------------------------------------"
+echo ""
+echo "Please provide the following information before deployment:"
+echo "1. Region (If your Cloud9 desktop is in the same region as your deployment, you can leave this blank)"
+echo "2. Account ID (If your Cloud9 desktop is running in the same Account ID as where your deployment will be, you can leave this blank)"
+echo "3. Name of the S3 bucket to be created for the EMR Studio S3 storage location"
+echo "4. Name of the SSO User that will be associated with the EMR Studio deployment"
+echo ""
+echo "*** Please make sure you have enabled AWS SSO and have a user available to be associated with the EMR Studio session"
+echo ""
+
+read -p "Have you enabled AWS SSO in the region you want to deploy this stack? (y/n) " get_sso_question
+echo ""
+
+if [ "$get_sso_question" != "y" ]
+  then
+    echo "Please enable AWS SSO before deploying this stack. Thank you."
+    exit 0
+fi
+
 ### Parameters
 
 ########## Parameters (Start)
 
-### Global parameters (start)
-region="${1}"  ## Region VPC and cluster will be implemented
-accountid="${2}" ## AWS Account ID
-### Global parameters (end)
+### User parameters that cannot use the default ones (start)
+region=""  
+accountid="" 
+studio_default_s3_location_bucket=""
+studio_user_to_map=""
+### User parameters that cannot use the default ones (end)
 
 ### Test for account ID parameter passed through else exit from script
-echo $# arguments 
-if [ "$#" -lt 2 ]; then
-    accountid=$(aws sts get-caller-identity | jq .Account | sed 's/"//g')
-    region=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
-    echo "Using default $region and $accountid. If not desired, please make sure you provide 2 parameters: Region and Account ID; example: bash deploy_eks_cluster_bash.sh 'us-east-1' '12345678'"
+accountid_=$(aws sts get-caller-identity | jq .Account | sed 's/"//g')
+region_=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
+
+# Get Region
+read -p "Region: [$region_]: " get_region
+
+# Get Account ID
+read -p "Account ID [$accountid_]: " get_accountid
+
+# EC2 Public Key
+read -p "EC2 Public Key name: " get_pubkey
+
+# Get Default S3 bucket
+read -p "Default S3 bucket name for EMR Studio (do not add s3://): " get_studio_default_s3_location_bucket
+
+# Get SSO User
+read -p "SSO Username to use: " get_studio_user_to_map
+
+if [ "$get_region" == "" ]
+  then
+    get_region=$region_
 fi
+
+if [ "$get_accountid" == "" ]
+  then
+    get_accountid=$accountid_
+fi
+
+accountid=$get_accountid
+region=$get_region
+pubkey=$get_pubkey
+studio_default_s3_location_bucket=$get_studio_default_s3_location_bucket
+studio_user_to_map=$get_studio_user_to_map
+
+no_parameters_num=0
+
+if [ -z "$pubkey" ]
+  then
+    no_parameters_num=$((no_parameters_num+1))
+    pubkey="< MISSING >"
+fi
+
+
+if [ -z "$studio_default_s3_location_bucket" ]
+  then
+    no_parameters_num=$((no_parameters_num+1))
+    studio_default_s3_location_bucket="< MISSING >"
+fi
+
+if [ -z "$studio_user_to_map" ]
+  then
+    no_parameters_num=$((no_parameters_num+1))
+    studio_user_to_map="< MISSING >"
+fi
+
+#echo $no_parameters_num
+
+if [ $no_parameters_num -gt 0 ]
+  then
+    echo "Insufficient parameters provided..."
+    echo "Region: $region | Account ID: $accountid | EC2 Public Key: $pubkey | S3 Bucket: $studio_default_s3_location_bucket | SSO Username: $studio_user_to_map"
+    exit 0
+fi
+
+# Test for presence of S3 bucket
+#s3bucket=$(aws s3 ls s3://$studio_default_s3_location_bucket)
+
+bucket_list=$(aws s3api list-buckets --query "Buckets[].Name")
+bucket_size=$(echo $bucket_list | jq length)
+bucket_counter=0
+bucket_exist=0
+
+while [ $bucket_counter -lt $bucket_size ]
+do
+  bucket_name=$(echo $bucket_list | jq ".[$bucket_counter]" | sed 's/"//g')
+  
+  if [ "$bucket_name" == "$studio_default_s3_location_bucket" ]
+    then
+      bucket_exist=1
+      break
+  fi
+  
+  bucket_counter=$((bucket_counter+1))
+
+done
+
+
+if [ $bucket_exist -eq 1 ]
+  then
+    echo ""
+    echo "Bucket $studio_default_s3_location_bucket already exist in your account. Please use a different name."
+    echo "Exit from deployment ..."
+    exit 0
+fi
+
+
+bucket_to_use=""
+
+nb=$(aws s3 mb s3://$studio_default_s3_location_bucket --region $region)
+    
+if [ -z $nb ]
+  then
+    echo "Bucket $studio_default_s3_location_bucket is not unique. Please retry with a unique S3 bucket name"
+    echo "Exit from deployment ..."
+    exit 0
+fi
+    
+bucket_to_use=$(echo $nb | awk '{print $2}')
+
+echo "Bucket created: $bucket_to_use ..."
+    
+echo "Deploying CloudFormation stack with the following parameters..."
+echo "Region: $region | Account ID: $accountid | S3 Bucket: $studio_default_s3_location_bucket | SSO Username: $studio_user_to_map"
 
 source ./parameters.sh
 
@@ -61,6 +193,26 @@ cf_stack_status () {
 }
 
 ####################### Functions (end) ###############################
+
+## Create IAM Policy for $studio_default_s3_location_bucket
+
+aws cloudformation create-stack \
+  --stack-name ${cf_iam_s3bucket_policy} \
+  --template-body file://templates/s3-eks-policy.yaml \
+  --parameters ParameterKey=StudioDefaultS3Bucket,ParameterValue="${studio_default_s3_location_bucket}" \
+  --region ${region} \
+  --capabilities CAPABILITY_IAM
+
+
+# Check IAM policy create status before moving on
+cf_stack_status ${cf_iam_s3bucket_policy}
+
+s3eks_policyarn=$(aws cloudformation describe-stacks \
+  --stack-name ${cf_iam_s3bucket_policy} | jq .Stacks | jq .[].Outputs | jq .[].OutputValue | sed 's/"//g')
+
+echo "IAM Policy created for S3 bucket $studio_default_s3_location_bucket: $s3eks_policyarn ..."
+
+
 # Variables for replacing EKS Deployment YAML script
 tagarray=(
     "clustername" 
@@ -85,7 +237,7 @@ tagarrayvalue=(
   "$desiredCapacity" 
   "$maxPodsPerNode" 
   "$pubkey" 
-  "$policyarn"
+  "$s3eks_policyarn"
 )
 
 # Create VPC
@@ -367,6 +519,28 @@ virtclusterid=$(aws cloudformation describe-stacks \
 
 echo "Virtual Cluster ID: $virtclusterid"
 
+# Create Certificate for use in Managed Endpoint
+certdomain="*.emreksdemo.com"
+openssl req -x509 -newkey rsa:1024 \
+  -keyout temp/privateKey.pem \
+  -out temp/certificateChain.pem -days 365 -nodes \
+  -subj "/C=US/ST=Washington/L=Seattle/O=MyOrg/OU=MyDept/CN=${certdomain}"
+
+cp temp/certificateChain.pem temp/trustedCertificates.pem
+
+aws acm import-certificate \
+  --certificate fileb://temp/certificateChain.pem \
+  --private-key fileb://temp/privateKey.pem \
+  --certificate-chain fileb://temp/certificateChain.pem \
+  --region ${region}
+
+certjson=$(aws acm list-certificates --region us-east-1 | jq .CertificateSummaryList | jq ".[] | select(.DomainName==\"${certdomain}\")")
+
+certarn=$(echo $certjson | jq .CertificateArn | sed 's/"//g')
+
+echo "Certificate ARN: $certarn"
+echo ""
+
 # Create Managed Endpoint
 echo "Creating Managed Endpoint ..."
 
@@ -463,6 +637,8 @@ aws cloudformation create-stack \
     ParameterKey=IdentityUserType,ParameterValue="${studio_usertype_to_map}" \
   --region ${region} \
   --capabilities CAPABILITY_IAM
+
+cf_stack_status ${cf_launch_studio_stackname}
 
 studio_json=$(aws cloudformation describe-stacks --stack-name ${cf_launch_studio_stackname} --region $region | jq .Stacks[].Outputs[] | jq 'select(.OutputKey=="EMRStudioId")')
 emr_studio_id=$(echo $studio_json | jq .OutputValue | sed 's/"//g')
