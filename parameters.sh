@@ -31,6 +31,7 @@ cf_virtclustername="cf-virt-emr-cluster"
 ### Virtual EMR Cluster Parameters (end)
 
 ### Virtual Managed Endpoint (start)
+certdomain="*.emreksdemo.com"
 virtendpointname="virtual-emr-endpoint-demo"
 ### Virtual Managed Endpoint (end)
 
