@@ -33,12 +33,12 @@ fi
 
 ########## Parameters (Start)
 
-### User parameters that cannot use the default ones (start)
+### User provided parameters (start)
 region=""  
 accountid="" 
 studio_default_s3_location_bucket=""
 studio_user_to_map=""
-### User parameters that cannot use the default ones (end)
+### User provided parameters (end)
 
 ### Test for account ID parameter passed through else exit from script
 accountid_=$(aws sts get-caller-identity | jq .Account | sed 's/"//g')
