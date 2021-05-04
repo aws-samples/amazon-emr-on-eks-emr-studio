@@ -128,5 +128,12 @@ $ aws em6. r-containers delete-virtual-cluster --region ${region} --id abcd1efgh
 
 6. Delete the CloudFormation stacks
 
+```
+$ source ./parameters.sh
+
+$ aws cloudformation delete-stack --stack-name ${cf_launch_studio_stackname} --region ${region}
+
+```
+
 
 
