@@ -95,4 +95,38 @@ $ aws emr-containers list-managed-endpoints --region ${region} --virtual-cluster
             "type": "JUPYTER_ENTERPRISE_GATEWAY",
             "state": "ACTIVE",
 ```
-4. 
+3. Delete the Managed Endpoint
+
+```
+$ aws emr-containers delete-managed-endpoint --region ${region} --virtual-cluster-id abcd1efgh2ijklmn3opqr4st --id abcdefghijklm
+{
+    "id": "abcdefghijklm",
+    "virtualClusterId": "abcd1efgh2ijklmn3opqr4st"
+}
+```
+4. Check the managed endpoint has been deleted (it will take some time)
+
+```
+aws emr-containers describe-managed-endpoint --region ${region} --virtual-cluster-id abcd1efgh2ijklmn3opqr4st --id abcdefghijklm
+{
+    "endpoint": {
+        "id": "abcdefghijklm",
+        "name": "virtual-emr-endpoint-demo",
+        "arn": "arn:aws:emr-containers:us-east-1:699130936416:/virtualclusters/abcd1efgh2ijklmn3opqr4st/endpoints/abcdefghijklm",
+        "virtualClusterId": "abcd1efgh2ijklmn3opqr4st",
+        "type": "JUPYTER_ENTERPRISE_GATEWAY",
+        "state": "TERMINATED",
+```
+5. Delete the Virtual Cluster
+
+```
+$ aws em6. r-containers delete-virtual-cluster --region ${region} --id abcd1efgh2ijklmn3opqr4st
+{
+    "id": "abcd1efgh2ijklmn3opqr4st"
+}
+```
+
+6. Delete the CloudFormation stacks
+
+
+
