@@ -120,7 +120,7 @@ aws emr-containers describe-managed-endpoint --region ${region} --virtual-cluste
 5. Delete the Virtual Cluster
 
 ```
-$ aws em6. r-containers delete-virtual-cluster --region ${region} --id abcd1efgh2ijklmn3opqr4st
+$ aws emr-containers delete-virtual-cluster --region ${region} --id abcd1efgh2ijklmn3opqr4st
 {
     "id": "abcd1efgh2ijklmn3opqr4st"
 }
