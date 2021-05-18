@@ -549,9 +549,9 @@ echo "Region: ${region}"
 
 
 
-read -p "Press enter to continue"
+#read -p "Press enter to continue"
 
-sleep 15
+sleep 10
 
 echo "Starting to create managed endpoint ..."
 echo "Using the following command: "
