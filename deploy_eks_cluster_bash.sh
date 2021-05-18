@@ -527,13 +527,11 @@ openssl req -x509 -newkey rsa:1024 \
 
 cp temp/certificateChain.pem temp/trustedCertificates.pem
 
-aws acm import-certificate \
+certjson=$(aws acm import-certificate \
   --certificate fileb://temp/certificateChain.pem \
   --private-key fileb://temp/privateKey.pem \
   --certificate-chain fileb://temp/certificateChain.pem \
-  --region ${region}
-
-certjson=$(aws acm list-certificates --region us-east-1 | jq .CertificateSummaryList | jq ".[] | select(.DomainName==\"${certdomain}\")")
+  --region ${region})
 
 certarn=$(echo $certjson | jq .CertificateArn | sed 's/"//g')
 
@@ -541,7 +539,42 @@ echo "Certificate ARN: $certarn"
 echo ""
 
 # Create Managed Endpoint
-echo "Creating Managed Endpoint ..."
+echo "Creating Managed Endpoint"
+echo "Using: "
+echo "Virtual cluster id: ${virtclusterid}"
+echo "Execution Role ARN: ${role_arn}"
+echo "Release label: ${emr_release_label}"
+echo "Certificate ARN: ${certarn}"
+echo "Region: ${region}"
+
+
+
+read -p "Press enter to continue"
+
+sleep 15
+
+echo "Starting to create managed endpoint ..."
+echo "Using the following command: "
+echo "aws emr-containers create-managed-endpoint \
+--type JUPYTER_ENTERPRISE_GATEWAY \
+--virtual-cluster-id ${virtclusterid} \
+--name ${virtendpointname} \
+--execution-role-arn ${role_arn} \
+--release-label ${emr_release_label} \
+--certificate-arn ${certarn} \
+--region ${region} \
+--configuration-overrides '{
+    "applicationConfiguration": [
+      {
+        "classification": "spark-defaults",
+        "properties": {
+          "spark.hadoop.hive.metastore.client.factory.class": "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory",
+          "spark.sql.catalogImplementation": "hive"
+        }
+      }
+    ]
+  }'"
+
 
 aws emr-containers create-managed-endpoint \
 --type JUPYTER_ENTERPRISE_GATEWAY \
