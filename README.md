@@ -48,15 +48,14 @@ $ git clone https://gitlab.aws.dev/tanmatth/eks_emr_studio.git
 $ cd eks_emr_studio
 $ bash ./prepare_cloud9.sh
 
-# Fill out the variables in ./parameters.sh to match your desired environment
+# Modify the variables in ./parameters.sh to match your desired environment and names
 ```
 ### Deploy Script
-Before running the script, have the AWS account id available and the region. 
+Before running the script, have the AWS account id available and the region if you are deploying in an environemnt that is the same as your EKS cluster. 
 
 ```
-# Launch the script
-$ bash ./deploy_eks_cluster_bash.sh '<Account ID>' '<region>'
-## If using default region and account ID of your Cloud9 Desktop
+# Launch the script; fill out the questions asked
+
 $ bash ./deploy_eks_cluster_bash.sh
 
 ...
