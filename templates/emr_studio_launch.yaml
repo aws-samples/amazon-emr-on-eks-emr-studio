@@ -43,7 +43,7 @@ Parameters:
     Description: "Second Private Subnet"
     Type: String
   IdentityUserName:
-    AllowedPattern: ^([a-zA-Z0-9]*)$
+    AllowedPattern: ^([a-zA-Z0-9]*|[a-zA-Z0-9]*\@[a-zA-Z0-9\.]*)$
     Description: "User Name"
     Type: String
   IdentityUserType:
