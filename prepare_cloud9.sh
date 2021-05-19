@@ -9,7 +9,14 @@ sudo curl --silent --location -o /usr/local/bin/kubectl \
 
 sudo chmod +x /usr/local/bin/kubectl
 
-sudo pip install --upgrade awscli && hash -r
+#sudo pip install --upgrade awscli && hash -r
+## Remove version 1 awscli
+sudo rm /usr/bin/aws
+
+## Install awscli v.2
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
 
 echo 'yq() {
   docker run --rm -i -v "${PWD}":/workdir mikefarah/yq "$@"
