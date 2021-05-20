@@ -564,12 +564,12 @@ echo "aws emr-containers create-managed-endpoint \
 --certificate-arn ${certarn} \
 --region ${region} \
 --configuration-overrides '{
-    "applicationConfiguration": [
+    \"applicationConfiguration\": [
       {
-        "classification": "spark-defaults",
-        "properties": {
-          "spark.hadoop.hive.metastore.client.factory.class": "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory",
-          "spark.sql.catalogImplementation": "hive"
+        \"classification\": \"spark-defaults\",
+        \"properties\": {
+          \"spark.hadoop.hive.metastore.client.factory.class\": \"com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory\",
+          \"spark.sql.catalogImplementation\": \"hive\"
         }
       }
     ]
