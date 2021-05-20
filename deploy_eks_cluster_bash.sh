@@ -464,7 +464,6 @@ cp templates/aws-load-balancer-controller-service-account.yaml.template temp/aws
 # Prepare LB controller service template file
 
 sedstr="s/%alb_role_arn%/${roleArn}/"
-echo $sedstr
 sed -i ${sedstr} temp/aws-load-balancer-controller-service-account.yaml
 
 # Create service account on the cluster
