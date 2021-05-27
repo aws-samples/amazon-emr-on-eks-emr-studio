@@ -58,6 +58,10 @@ Before running the script, have the AWS account id available and the region if y
 
 $ bash ./deploy_eks_cluster_bash.sh
 
+## If you want to run your Spark executors in Fargate, run the alternative deployment script
+
+$ bash ./deploy_eks_cluster_fargate_bash.sh
+
 ...
 ## Once the script is completed, you will see a line that looks like this:
 
