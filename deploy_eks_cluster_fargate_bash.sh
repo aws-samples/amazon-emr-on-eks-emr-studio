@@ -234,7 +234,7 @@ tagarrayvalue=(
   "$managedNodeName" 
   "$instanceType" 
   "$volumeSize" 
-  "$desiredCapacity" 
+  "$desiredCapacityFargate" 
   "$maxPodsPerNode" 
   "$pubkey" 
   "$s3eks_policyarn" 
@@ -268,7 +268,7 @@ vpcarray=(
 mkdir temp
 
 ## Copy deployment template
-cp templates/eks_cluster_spark_deployment.yaml.template temp/eks_cluster_spark_deployment.yaml
+cp templates/eks_cluster_spark_deployment_fargate.yaml.template temp/eks_cluster_spark_deployment.yaml
 
 ## Get VPC Info from CloudFormation output
 vpcinfo=$(aws cloudformation describe-stacks \
