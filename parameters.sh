@@ -19,6 +19,7 @@ managedNodeName="spark-nodes" ## EKS Managed Node Name
 instanceType="m5.xlarge" ## EC2 Instance Type
 volumeSize="30" ## Volume Size of EC2 EBS Vol
 desiredCapacity="3" ## Desired capacity
+desiredCapacityFargate="1" ## Desired capacity for Fargate Deployment
 maxPodsPerNode="10" ## Maximum number of Pods Per Node
 
 ### EKS Cluster Parameters (end)
