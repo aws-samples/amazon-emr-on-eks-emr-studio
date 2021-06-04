@@ -42,7 +42,7 @@ The script requires using AWS Cloud9. Follow the instructions listed out in the 
 ### Preparation
 ```
 # Download script from the repository
-$ git clone https://gitlab.aws.dev/tanmatth/eks_emr_studio.git
+$ git clone https://github.com/aws-samples/amazon-emr-on-eks-emr-studio.git
 
 # Prepare the Cloud9 Desktop pre-requisites
 $ cd eks_emr_studio
